@@ -11,8 +11,18 @@ This App can
 
 ### Test settings
 
-If you want to get ivf result, use CameraToIvfTest.java;
-if you want to get mpeg result, use CameraToMpegTest.java.
+If you want to get ivf result, change the setting in CameraToIvfTest.java;
+if you want to get mpeg result, change the setting in CameraToMpegTest.java.
+By default, we use Ivf format, if you want to use mp4, change the code in MediaCodecActivity.java.
+
+From:
+```
+	CameraToIvfTest test = new CameraToIvfTest();
+```
+To:
+```
+	CameraToMpegTest test = new CameraToMpegTest();
+```
 
 You can specify the resolution, the FPS and the target bitrate in :
 
@@ -49,16 +59,27 @@ If you use video clip as input, you can specify the name:
     private static final String INPUT_FILE = "the name of the clip without extention";
 ```
 
+Other setting:
+```
+    // I Frame interval
+    private static final int IFRAME_INTERVAL = 300;
+    // Duration for test using camera, for test using clips, the test will also be
+    // terminated after this period of time.
+    private static final int DURATION_SEC = 300;
+```
+
 ### Test setup
 
-1. Install Eclipse and Android SDK
-   [Link](http://developer.android.com/sdk/installing/installing-adt.html)
-2. Import this project to Eclipse
-   General->Existing Projects to Workspace
+1. Install Android SDK (
+   [Link](http://developer.android.com/sdk/installing/installing-adt.html) ) in the Eclipse.
+2. Git clone [this project](https://github.com/jingcmu/MediaCodecTest.git).
+   Import it to Eclipse: General->Existing Projects to Workspace
 3. Connect your device to the computer, run "adb devices" to see whether it is recognized
-4. If you want to input from clips, use "adb push ... " to upload the clips to /sdcard
+4. If you want to input from clips, use "adb push ... " to upload the clips to /sdcard,
+   Ex: adb push ~/work/video_clips/1.yuv /sdcard/
 5. Run CameraToIvfTest.java / CameraToMpegTest.java to get encoded frames
-6. Use "adb pull ..." to download the result to your computer.
+6. Use "adb pull ..." to download the result to your computer, 
+   Ex: adb pull /sdcard/1_0.ivf
 7. During the process, you can use "adb shell" to operate the files on the device.
 
 
