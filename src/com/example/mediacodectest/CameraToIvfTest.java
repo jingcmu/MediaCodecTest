@@ -60,26 +60,32 @@ public class CameraToIvfTest {
 
     // where to put the output file (note: /sdcard requires WRITE_EXTERNAL_STORAGE permission)
     private static final File OUTPUT_DIR = Environment.getExternalStorageDirectory();
+    
+    // where to put the input file
+    private static final File INPUT_DIR = Environment.getExternalStorageDirectory();
+    private static final String INPUT_FILE = "mac_marco_moving.320_240";
 
-    // 720p
-    private static final int WIDTH = 1280;
-    private static final int HEIGHT = 720;
-    private static final int FRAME_RATE = 30;   // 30fps
-    private static final int BITRATE = 2000000;   // 2 Mbps
-    //private static final int BITRATE = 2000000;   // 1 Mbps
+    // HD
+    //private static final int WIDTH = 1280;
+    //private static final int HEIGHT = 720;
+    //private static final int FRAME_RATE = 30;   // 30fps
+    //private static final int BITRATE = 2000000;   // 2 Mbps
 
     // VGA
-    //private static final int WIDTH = 640;
-    //private static final int HEIGHT = 480;
-    //private static final int FRAME_RATE = 15;   // 30fps
-    //private static final int BITRATE = 1000000;   // 1 Mbps
+    private static final int WIDTH = 320;
+    private static final int HEIGHT = 240;
+    private static final int FRAME_RATE = 20;   // 30fps
+    private static final int BITRATE = 100000;
 
     // parameters for the encoder
-    private static final String VP8_MIME = "video/x-vnd.on2.vp8";
+    private static final String VP8_MIME = "video/x-vnd.on2.vp8"; 
     //private static final String VP8_MIME = "video/avc";
-    private static final int IFRAME_INTERVAL = 30;         // 10 seconds between I-frames
-    private static final int DURATION_SEC = 10;           // 10 seconds of video
-    private static boolean WRITE_IVF = false;
+    private static final int IFRAME_INTERVAL = 300;         // 10 seconds between I-frames
+    private static final int DURATION_SEC = 300;           // 10 seconds of video
+    private static boolean WRITE_IVF = true;
+    private static boolean WRITE_YUV = false;				// whether write out the captured YUV
+    private static boolean WRITE_DECODED_DATA = true;				// whether write out the captured YUV
+    private static boolean USE_CLIP = true;				// whether use external clip as input
     private static boolean FORCE_SW_CODEC = false;
 
     // encoder / ivf writer state
@@ -91,6 +97,9 @@ public class CameraToIvfTest {
     private CodecInputSurface mInputSurface;
     private CameraBufferCallback mCameraCallback;
     private IvfWriter mIvfWriter;
+    private YuvWriter mYuvWriter;
+    private YuvWriter mYuvWriter_decoded;
+    private YuvReader mYuvReader;
     private LooperRunner mCameraLooperRunner;
     private LooperRunner mTestLooperRunner;
     private Thread mTestRunner;
@@ -105,6 +114,7 @@ public class CameraToIvfTest {
     private long[] mEncoderFrameOutputSize = new long[DURATION_SEC * FRAME_RATE + 1024];
     private long[] mDecoderFrameInputTimeMs = new long[DURATION_SEC * FRAME_RATE + 1024];
     private long[] mDecoderFrameOutputTimeMs = new long[DURATION_SEC * FRAME_RATE + 1024];
+    private byte[] mFrameData = new byte[(int)(WIDTH * HEIGHT * 1.5)];
 
     private int mDecoderInputFrameCount;
     private int mDecoderOutputFrameCount;
@@ -164,9 +174,9 @@ public class CameraToIvfTest {
 
     private void encodeCameraToIvfWithBuffers(Surface screenSurface, VideoRendererIf rendererIf) {
         boolean useSurface = false;
-        boolean useCameraTimestamps = true;
-        boolean useDecoder = false;
-        boolean useDecoderSurface = true;
+        boolean useCameraTimestamps = false; // not use camera timestamp for offline test
+        boolean useDecoder = true;
+        boolean useDecoderSurface = false;
 
         Log.d(TAG, "EncodeCameraToIvfWithBuffers Thread id = " + Thread.currentThread().getId());
         Log.d(TAG, VP8_MIME + " output " + WIDTH + "x" + HEIGHT + " @" + BITRATE);
@@ -217,7 +227,7 @@ public class CameraToIvfTest {
                 //getEncoderOutput(false);
                 while (true) {
                     boolean frameAvailable = mCameraCallback.checkNewImage(2);
-
+                    
                     // check encoder output
                     getEncoderOutput(false);
 
@@ -264,6 +274,7 @@ public class CameraToIvfTest {
                 if (startWhen < 0) {
                     startWhen = mCameraCallback.getTimestamp();
                     desiredEnd = startWhen + DURATION_SEC * 1000000000L;
+                    Log.i(TAG, "DesiredEnd = " + desiredEnd);
                 }
                 // Check the time
                 if (mCameraCallback.getTimestamp() > desiredEnd) {
@@ -287,29 +298,61 @@ public class CameraToIvfTest {
                     // Get encoder input buffer and fill it with camera data
                     int inputBufIndex = mEncoder.dequeueInputBuffer(0);
                     if (inputBufIndex >= 0) {
-                        byte[] data = mCameraCallback.getCameraData();
-                        int dataLength = data.length;
-                        mFrameInputTimeMs[mInputFrameCount] = SystemClock.elapsedRealtime();
-                        encoderInputBuffers[inputBufIndex].clear();
-                        encoderInputBuffers[inputBufIndex].put(data);
-                        encoderInputBuffers[inputBufIndex].rewind();
-                        mEncoder.queueInputBuffer(inputBufIndex, 0, dataLength,
-                                inPresentationTimeNs / 1000, 0);
-                        mInputFrameCount++;
-                    }
-                    else {
-                        Log.w(TAG, "Encoder is not ready - drop frame: " + inputBufIndex);
-                        mDroppedFrameCount++;
-                    }
-                }
-                else {
-                    mDroppedFrameCount++;
-                    Log.w(TAG, "Encoder is behind - drop frame: " +
-                            (mInputFrameCount - mOutputFrameCount));
-                }
+                    		byte[] data = null;
+                    		int dataLength = 0;
+                    	   	if (USE_CLIP) {                    	
+                    	   		//data = mCameraCallback.getCameraData();
+                    	   		int bytes = mYuvReader.readFrame(mFrameData, FORCE_SW_CODEC);
+                    	   		mFrameInputTimeMs[mInputFrameCount] = SystemClock.elapsedRealtime();
+                        		encoderInputBuffers[inputBufIndex].clear();
+                        		encoderInputBuffers[inputBufIndex].put(mFrameData);
+                        		encoderInputBuffers[inputBufIndex].rewind();
+                        		dataLength = mFrameData.length;
+                        		if (bytes <= 0) {
+                        			break;
+                        		} else {
+                        			Log.i(TAG, "bytes = " + bytes);
+                        		}
+                        		if (WRITE_YUV) {
+                        			try {
+                        				mYuvWriter.writeFrame(mFrameData, FORCE_SW_CODEC);
+                        			} catch (IOException e) {
+                        				Log.e(TAG, "YuvWriter failure: " + e.toString());
+                        			}
+                        		}
+                    	   	}
+                    	   	else {
+                    	   		data = mCameraCallback.getCameraData();
+                    	   		mFrameInputTimeMs[mInputFrameCount] = SystemClock.elapsedRealtime();
+                        		encoderInputBuffers[inputBufIndex].clear();
+                        		encoderInputBuffers[inputBufIndex].put(data);
+                        		encoderInputBuffers[inputBufIndex].rewind();
+                        		dataLength = data.length;
+                        		if (WRITE_YUV) {
+                        			try {
+                        				mYuvWriter.writeFrame(data, FORCE_SW_CODEC);
+                        			} catch (IOException e) {
+                        				Log.e(TAG, "YuvWriter failure: " + e.toString());
+                        			}
+                        		}
+                    	   	}
+                    		mEncoder.queueInputBuffer(inputBufIndex, 0, dataLength,
+                    				inPresentationTimeNs / 1000, 0);
+                    		mInputFrameCount++;
+                    	}
+                    	else {
+                    		Log.w(TAG, "Encoder is not ready - drop frame: " + inputBufIndex);
+                    		mDroppedFrameCount++;
+                    	}
+                	}
+                	else {
+                		mDroppedFrameCount++;
+                		Log.w(TAG, "Encoder is behind - drop frame: " +
+                				(mInputFrameCount - mOutputFrameCount));
+                	}
 
-                // Return camera frame back
-                mCameraCallback.addCallbackBuffer();
+                	// Return camera frame back;
+                	mCameraCallback.addCallbackBuffer();
             }
 
             // send end-of-stream to encoder, and drain remaining output
@@ -393,8 +436,8 @@ public class CameraToIvfTest {
     public void encodeCameraToIvfWithSurface(Surface screenSurface, VideoRendererIf rendererIf) {
         // arbitrary but popular values
         boolean useSurface = true;
-        boolean useDecoder = false;
-        boolean useDecoderSurface = true;
+        boolean useDecoder = true;
+        boolean useDecoderSurface = false;
 
         Log.d(TAG, VP8_MIME + " output " + WIDTH + "x" + HEIGHT + " @" + BITRATE);
 
@@ -854,7 +897,8 @@ public class CameraToIvfTest {
         if (useSurface) {
             mEncoderColorFormat = CodecCapabilities.COLOR_FormatSurface;
         } else {
-            mEncoderColorFormat = properties.colorFormat;
+            mEncoderColorFormat = properties.colorFormat; //CodecCapabilities.COLOR_FormatYUV420Planar; //
+            Log.d(TAG, "colorFormat is " + mEncoderColorFormat);
         }
 
         Log.d(TAG, "Open encoder " + width + " x " + height + ". @ " + bitRate + " bps.");
@@ -890,13 +934,24 @@ public class CameraToIvfTest {
         // Output filename.  Ideally this would use Context.getFilesDir() rather than a
         // hard-coded output directory.
         String outputPath = new File(OUTPUT_DIR,
-                "camera." + width + "x" + height + ".ivf").toString();
+        		   	INPUT_FILE + ".ivf").toString();
+        String outputPathYuv = new File(OUTPUT_DIR,
+        			INPUT_FILE + "_input.yuv").toString();
+        String outputDecodedYuv = new File(OUTPUT_DIR,
+        			INPUT_FILE + "_decoded.yuv").toString();
+        String inputPath = INPUT_DIR.toString() + "/" + INPUT_FILE + ".yuv";
         Log.i(TAG, "Output file is " + outputPath);
 
         try {
             mIvfWriter = new IvfWriter(outputPath, width, height);
+            mYuvWriter = new YuvWriter(outputPathYuv, width, height);
+            mYuvWriter_decoded = new YuvWriter(outputDecodedYuv, width, height);
+            if (USE_CLIP) {
+            		mYuvReader = new YuvReader(inputPath, width, height, 0);
+            }
+            Log.i(TAG, "mYuvReader is " + mYuvReader);
         } catch (IOException e) {
-            Log.e(TAG, "IvfWriter failure: " + e.toString());
+            Log.e(TAG, "IvfWriter/YuvWriter/YuvReader failure: " + e.toString());
         }
     }
 
@@ -924,6 +979,22 @@ public class CameraToIvfTest {
                 Log.e(TAG, "IvfWriter failure: " + e.toString());
             }
             mIvfWriter = null;
+        }
+        if (mYuvWriter != null) {
+            try {
+                mYuvWriter.close();
+            } catch (IOException e) {
+                Log.e(TAG, "YuvWriter failure: " + e.toString());
+            }
+            mYuvWriter = null;
+        }
+        if (mYuvWriter_decoded != null) {
+            try {
+            	mYuvWriter_decoded.close();
+            } catch (IOException e) {
+                Log.e(TAG, "YuvWriter_decoded failure: " + e.toString());
+            }
+            mYuvWriter_decoded = null;
         }
         Log.d(TAG, "Releasing encoder done");
     }
@@ -1011,7 +1082,8 @@ public class CameraToIvfTest {
                         } catch (IOException e) {
                             Log.e(TAG, "IvfWriter failure: " + e.toString());
                         }
-                    }
+                    }                    
+                    
                     if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) == 0) {
                         mOutputFrameCount++;
                     }
@@ -1098,6 +1170,17 @@ public class CameraToIvfTest {
             throw new RuntimeException("encoderOutputBuffer returns error");
         } else {
             ByteBuffer decodedData = decoderOutputBuffers[decoderStatus];
+            
+            if (WRITE_DECODED_DATA) {
+	    			try {
+	    				byte[] b = new byte[decodedData.remaining()];
+	    				decodedData.get(b);
+	    				mYuvWriter_decoded.writeFrame(b, FORCE_SW_CODEC);
+	    			} catch (IOException e) {
+	    				Log.e(TAG, "YuvWriter_decoded failure: " + e.toString());
+	    			}
+	    		}
+            
             if (decodedData == null) {
                 throw new RuntimeException("decoderOutputBuffer " + decoderStatus + " was null");
             }

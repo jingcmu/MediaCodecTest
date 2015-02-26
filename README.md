@@ -1,13 +1,64 @@
 # MediaCodecTest
-Encoder speed measurement app
-It tries to encode frames from camera in real time.
-On Nexus 6 average VP8 HW 720p encoding time - 28 ms, average H.264 encoding time - 19 ms.
 
-To switch between VP8/H.264 comment/uncomment following string in CameraToIvfTest.java:
+### Introduction
+
+This APP is for HW/SW Codec testing on Android devices. 
+
+This App can 
+ - encode frames from camera or YUV files in VP8/H.264 using HW/SW encoder
+ - output original frames got from camera
+ - output encoded frames to an ivf file(for VP8) or an mpeg file(for H.264)
+
+### Test settings
+
+If you want to get ivf result, use CameraToIvfTest.java;
+if you want to get mpeg result, use CameraToMpegTest.java.
+
+You can specify the resolution, the FPS and the target bitrate in :
+
+```
+    private static final int WIDTH = 1280;       // HD
+    private static final int HEIGHT = 720;       // HD
+    private static final int FRAME_RATE = 30;    // 30fps
+    private static final int BITRATE = 2000000;  // 2 Mbps
+```
+
+You can switch between VP8/H.264:
 
 ```
     //private static final String VP8_MIME = "video/x-vnd.on2.vp8";
     private static final String VP8_MIME = "video/avc";
 ```
 
-This is part of my work in webRTC project in Google.
+You can decide whether to 
+ - output the encoded frames to an IVF file
+ - output the original YUV frames to a file
+ - output the decoded frames to a file
+ - use the input from a clip
+ - use SW encoder instead a HW encoder
+```
+    private static boolean WRITE_IVF = true;
+    private static boolean WRITE_YUV = false;
+    private static boolean WRITE_DECODED_DATA = true;
+    private static boolean USE_CLIP = true;
+    private static boolean FORCE_SW_CODEC = false;
+```
+
+If you use video clip as input, you can specify the name:
+```
+    private static final String INPUT_FILE = "the name of the clip without extention";
+```
+
+### Test setup
+
+1. Install Eclipse and Android SDK
+   ![Link](http://developer.android.com/sdk/installing/installing-adt.html)
+2. Import this project to Eclipse
+   General->Existing Projects to Workspace
+3. Connect your device to the computer, run "adb devices" to see whether it is recognized
+4. If you want to input from clips, use "adb push ... " to upload the clips to /sdcard
+5. Run CameraToIvfTest.java / CameraToMpegTest.java to get encoded frames
+6. Use "adb pull ..." to download the result to your computer.
+7. During the process, you can use "adb shell" to operate the files on the device.
+
+
