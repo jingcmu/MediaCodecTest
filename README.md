@@ -77,7 +77,8 @@ Other setting:
 3. Connect your device to the computer, run "adb devices" to see whether it is recognized
 4. If you want to input from clips, use "adb push ... " to upload the clips to /sdcard,
    Ex: adb push ~/work/video_clips/1.yuv /sdcard/
-5. Run CameraToIvfTest.java / CameraToMpegTest.java to get encoded frames
+5. Run the app by right click it and choose "Run as/Android Application", unlock the screen
+   of the device and click "Start encoder test with byte buffers".
 6. Use "adb pull ..." to download the result to your computer, 
    Ex: adb pull /sdcard/1_0.ivf
 7. During the process, you can use "adb shell" to operate the files on the device.
