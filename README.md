@@ -9,6 +9,21 @@ This App can
  - output original frames got from camera
  - output encoded frames to an ivf file(for VP8) or an mpeg file(for H.264)
 
+### Test setup
+
+1. Install Android SDK (
+   [Link](http://developer.android.com/sdk/installing/installing-adt.html) ) in the Eclipse.
+2. Git clone [this project](https://github.com/jingcmu/MediaCodecTest.git).
+   Import it to Eclipse: General->Existing Projects to Workspace
+3. Connect your device to the computer, run "adb devices" to see whether it is recognized
+4. If you want to input from clips, use "adb push ... " to upload the clips to /sdcard,
+   Ex: adb push ~/work/video_clips/1.yuv /sdcard/
+5. Run the app by right click it and choose "Run as/Android Application", unlock the screen
+   of the device and click "Start encoder test with byte buffers".
+6. Use "adb pull ..." to download the result to your computer, 
+   Ex: adb pull /sdcard/1_0.ivf
+7. During the process, you can use "adb shell" to operate the files on the device.
+
 ### Test settings
 
 If you want to get ivf result, change the setting in CameraToIvfTest.java;
@@ -67,20 +82,3 @@ Other setting:
     // terminated after this period of time.
     private static final int DURATION_SEC = 300;
 ```
-
-### Test setup
-
-1. Install Android SDK (
-   [Link](http://developer.android.com/sdk/installing/installing-adt.html) ) in the Eclipse.
-2. Git clone [this project](https://github.com/jingcmu/MediaCodecTest.git).
-   Import it to Eclipse: General->Existing Projects to Workspace
-3. Connect your device to the computer, run "adb devices" to see whether it is recognized
-4. If you want to input from clips, use "adb push ... " to upload the clips to /sdcard,
-   Ex: adb push ~/work/video_clips/1.yuv /sdcard/
-5. Run the app by right click it and choose "Run as/Android Application", unlock the screen
-   of the device and click "Start encoder test with byte buffers".
-6. Use "adb pull ..." to download the result to your computer, 
-   Ex: adb pull /sdcard/1_0.ivf
-7. During the process, you can use "adb shell" to operate the files on the device.
-
-
