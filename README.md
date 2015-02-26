@@ -21,7 +21,7 @@ This App can
 5. Run the app by right click it and choose "Run as/Android Application", unlock the screen
    of the device and click "Start encoder test with byte buffers".
 6. Use "adb pull ..." to download the result to your computer, 
-   Ex: adb pull /sdcard/1_0.ivf
+   Ex: adb pull /sdcard/1_0.ivf ./
 7. During the process, you can use "adb shell" to operate the files on the device.
 
 ### Test settings
