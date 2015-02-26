@@ -52,7 +52,7 @@ If you use video clip as input, you can specify the name:
 ### Test setup
 
 1. Install Eclipse and Android SDK
-   ![Link](http://developer.android.com/sdk/installing/installing-adt.html)
+   [Link](http://developer.android.com/sdk/installing/installing-adt.html)
 2. Import this project to Eclipse
    General->Existing Projects to Workspace
 3. Connect your device to the computer, run "adb devices" to see whether it is recognized
