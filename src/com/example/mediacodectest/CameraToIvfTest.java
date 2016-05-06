@@ -227,7 +227,7 @@ public class CameraToIvfTest {
                 //getEncoderOutput(false);
                 while (true) {
                     boolean frameAvailable = mCameraCallback.checkNewImage(2);
-                    
+
                     // check encoder output
                     getEncoderOutput(false);
 
@@ -298,61 +298,62 @@ public class CameraToIvfTest {
                     // Get encoder input buffer and fill it with camera data
                     int inputBufIndex = mEncoder.dequeueInputBuffer(0);
                     if (inputBufIndex >= 0) {
-                    		byte[] data = null;
-                    		int dataLength = 0;
-                    	   	if (USE_CLIP) {                    	
-                    	   		//data = mCameraCallback.getCameraData();
-                    	   		int bytes = mYuvReader.readFrame(mFrameData, FORCE_SW_CODEC);
-                    	   		mFrameInputTimeMs[mInputFrameCount] = SystemClock.elapsedRealtime();
-                        		encoderInputBuffers[inputBufIndex].clear();
-                        		encoderInputBuffers[inputBufIndex].put(mFrameData);
-                        		encoderInputBuffers[inputBufIndex].rewind();
-                        		dataLength = mFrameData.length;
-                        		if (bytes <= 0) {
-                        			break;
-                        		} else {
-                        			Log.i(TAG, "bytes = " + bytes);
-                        		}
-                        		if (WRITE_YUV) {
-                        			try {
-                        				mYuvWriter.writeFrame(mFrameData, FORCE_SW_CODEC);
-                        			} catch (IOException e) {
-                        				Log.e(TAG, "YuvWriter failure: " + e.toString());
-                        			}
-                        		}
-                    	   	}
-                    	   	else {
-                    	   		data = mCameraCallback.getCameraData();
-                    	   		mFrameInputTimeMs[mInputFrameCount] = SystemClock.elapsedRealtime();
-                        		encoderInputBuffers[inputBufIndex].clear();
-                        		encoderInputBuffers[inputBufIndex].put(data);
-                        		encoderInputBuffers[inputBufIndex].rewind();
-                        		dataLength = data.length;
-                        		if (WRITE_YUV) {
-                        			try {
-                        				mYuvWriter.writeFrame(data, FORCE_SW_CODEC);
-                        			} catch (IOException e) {
-                        				Log.e(TAG, "YuvWriter failure: " + e.toString());
-                        			}
-                        		}
-                    	   	}
-                    		mEncoder.queueInputBuffer(inputBufIndex, 0, dataLength,
-                    				inPresentationTimeNs / 1000, 0);
-                    		mInputFrameCount++;
-                    	}
-                    	else {
-                    		Log.w(TAG, "Encoder is not ready - drop frame: " + inputBufIndex);
-                    		mDroppedFrameCount++;
-                    	}
-                	}
-                	else {
-                		mDroppedFrameCount++;
-                		Log.w(TAG, "Encoder is behind - drop frame: " +
-                				(mInputFrameCount - mOutputFrameCount));
-                	}
+                        byte[] data = null;
+                        int dataLength = 0;
+                        if (USE_CLIP) {
+                            //data = mCameraCallback.getCameraData();
+                            int bytes = mYuvReader.readFrame(mFrameData, FORCE_SW_CODEC);
+                            mFrameInputTimeMs[mInputFrameCount] = SystemClock.elapsedRealtime();
+                            encoderInputBuffers[inputBufIndex].clear();
+                            encoderInputBuffers[inputBufIndex].put(mFrameData);
+                            Log.e(TAG, "Encode one frame");
+                            encoderInputBuffers[inputBufIndex].rewind();
+                            dataLength = mFrameData.length;
+                            if (bytes <= 0) {
+                                break;
+                            } else {
+                                Log.i(TAG, "bytes = " + bytes);
+                            }
+                            if (WRITE_YUV) {
+                                try {
+                                    mYuvWriter.writeFrame(mFrameData, FORCE_SW_CODEC);
+                                } catch (IOException e) {
+                                    Log.e(TAG, "YuvWriter failure: " + e.toString());
+                                }
+                            }
+                        }
+                        else {
+                            data = mCameraCallback.getCameraData();
+                            mFrameInputTimeMs[mInputFrameCount] = SystemClock.elapsedRealtime();
+                            encoderInputBuffers[inputBufIndex].clear();
+                            encoderInputBuffers[inputBufIndex].put(data);
+                            encoderInputBuffers[inputBufIndex].rewind();
+                            dataLength = data.length;
+                            if (WRITE_YUV) {
+                                try {
+                                    mYuvWriter.writeFrame(data, FORCE_SW_CODEC);
+                                } catch (IOException e) {
+                                    Log.e(TAG, "YuvWriter failure: " + e.toString());
+                                }
+                            }
+                        }
+                        mEncoder.queueInputBuffer(inputBufIndex, 0, dataLength,
+                                inPresentationTimeNs / 1000, 0);
+                        mInputFrameCount++;
+                    }
+                    else {
+                        Log.w(TAG, "Encoder is not ready - drop frame: " + inputBufIndex);
+                        mDroppedFrameCount++;
+                    }
+                }
+                else {
+                    mDroppedFrameCount++;
+                    Log.w(TAG, "Encoder is behind - drop frame: " +
+                            (mInputFrameCount - mOutputFrameCount));
+                }
 
-                	// Return camera frame back;
-                	mCameraCallback.addCallbackBuffer();
+                // Return camera frame back;
+                mCameraCallback.addCallbackBuffer();
             }
 
             // send end-of-stream to encoder, and drain remaining output
@@ -920,7 +921,11 @@ public class CameraToIvfTest {
         // you will likely want to defer instantiation of CodecInputSurface until after the
         // "display" EGL context is created, then modify the eglCreateContext call to
         // take eglGetCurrentContext() as the share_context argument.
-        mEncoder = MediaCodec.createByCodecName(properties.codecName);
+        try {
+            mEncoder = MediaCodec.createByCodecName(properties.codecName);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         mEncoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
         if (useSurface) {
             mEncoderSurface = mEncoder.createInputSurface();
@@ -1121,7 +1126,11 @@ public class CameraToIvfTest {
             decoderSurface = screenSurface;
         }
 
-        mDecoder = MediaCodec.createByCodecName(properties.codecName);
+        try {
+            mDecoder = MediaCodec.createByCodecName(properties.codecName);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         mDecoder.configure(format, decoderSurface, null, 0);
         mDecoder.start();
         ByteBuffer[] decoderInputBuffers = mDecoder.getInputBuffers();

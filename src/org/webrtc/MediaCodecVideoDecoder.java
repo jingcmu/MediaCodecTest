@@ -45,6 +45,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Surface;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
 // Java-side of peerconnection_jni.cc:MediaCodecVideoDecoder.
@@ -334,7 +335,11 @@ public class MediaCodecVideoDecoder {
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT, properties.colorFormat);
       }
       Log.d(TAG, "  Format: " + format);
-      mediaCodec = MediaCodec.createByCodecName(properties.codecName);
+      try {
+        mediaCodec = MediaCodec.createByCodecName(properties.codecName);
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
       if (mediaCodec == null) {
         return false;
       }
